@@ -1,0 +1,7 @@
+//Test program for concepts project
+//Each line is a separate statement
+
+var a = 4 * (1 % 2 * 3) + 32 + 2 / 32 
+var _b = a * 2 
+var c 
+c = 10 * a + 30 
