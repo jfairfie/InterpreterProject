@@ -1,0 +1,4 @@
+---Symbol Table---
+a Integer identifier
+b Integer identifier
+c Integer identifier

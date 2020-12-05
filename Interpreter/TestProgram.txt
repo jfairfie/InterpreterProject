@@ -1,7 +1,28 @@
 //Test program for concepts project
 //Each line is a separate statement
 
-var a = 4 * (1 % 2 * 3) + 32 + 2 / 32 
-var _b = a * 2 
-var c 
-c = 10 * a + 30 
+
+// ======= Known Bugs ======== 
+
+
+// Errors when chaining divison and multiplication 
+// Example // var _b = 4 / 2 * 3 + 6 * 3 / 3
+
+//Add error:: Need to end if statement with endif 
+
+//Allow comments after the lines of code 
+
+//Make errors examine if stmt lines 
+//Symbol table doesn't read through if stmt 
+//Evaluator doesn't read if stmt 
+
+// ===========================
+
+var a = 4 + 2
+var b = 3
+
+if (4 + 2 < 3 + a and 3 > 2) 
+var d = 3
+endif 
+
+var c = 2

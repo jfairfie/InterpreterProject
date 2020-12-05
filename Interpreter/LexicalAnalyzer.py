@@ -1,6 +1,4 @@
 '''
-Created on Nov 15, 2020
-
 @author: Joshua
 '''
 
@@ -21,6 +19,8 @@ class Lexer():
         
         if (len(self.characters) > 0):
             char = self.getCurrentChar()
+        elif ('\n'):
+            return 'EOF'
         else:
             return 'EOF'
         
@@ -36,22 +36,41 @@ class Lexer():
             while (self.lookup(char)):
                 self.characters = self.characters[1:len(self.characters)]
                 self.lexeme += char 
+                if (self.lexeme == '(' or self.lexeme == ')'):
+                    token = self.lookup(self.lexeme)
+                    return (token[0], token[1])
                 char = self.getCurrentChar()
                 #Looks for comment and returns 'EOF' if found 
                 if (self.lookup(self.lexeme)[0] == 'comment'):
                     return 'EOF'
+            
             token = self.lookup(self.lexeme)
             return (token[0], token[1])
         
         #Checking if character is constant 
-        elif (char.isdigit()):
+        elif (char.isdigit() or char == '.'):
+            if (char == '.'):
+                comma = True 
+            else:
+                comma = False 
             while (char.isdigit() and len(self.characters) > 0):
                 self.lexeme += char
                 self.characters = self.characters[1:len(self.characters)]
                 char = self.getCurrentChar()
+                if (char == '.' and comma == False):
+                    self.lexeme += char
+                    self.characters = self.characters[1:len(self.characters)]
+                    char = self.getCurrentChar()
+                    comma = True
+                elif (char == '.' and comma == True):
+                    sys.exit('Error:: double contains too many periods')
             if (char.isalpha() and len(self.characters) > 0):
                 sys.exit('Error, number cannot precede number in naming identifiers')
-            return ('constant', self.lexeme)
+            
+            if (comma == True):
+                return ('constant', float(self.lexeme))
+            else:
+                return ('constant', int(self.lexeme))
         #Checking if character is identifier or keyword
         elif (char.isalpha() or char == '_'):
             while ((char.isalpha() or char.isdigit() or char == '_') and len(self.characters) > 0):
@@ -71,12 +90,13 @@ class Lexer():
         return char
 
     #Input: char character 
-    #Checks if character is operator, using dictionary 
+    #Checks if cha    racter is operator, using dictionary 
     def lookup(self, character):
         operatorDict = {'+':['operator', '+'], '-':['operator', '-'], '/':['operator', '/'], '*':['operator','*'], 
                         '(':['operator','('], ')':['operator',')'], '{':['operator','{'], '}':['operator','}'],
                         '=':['operator','='], '//':['comment','//'], '*=':['operator', '*='], '+=':['operator','+='],
-                        '-=':['operator','-='], '/=':['operator','/='], '%':['operator', '%']}
+                        '-=':['operator','-='], '/=':['operator','/='], '%':['operator', '%'], '==':['operator', '=='], 
+                        '<':['operator','<'], '>':['operator','>'], '<=':['operator','<='], '>=':['operator','>=']}
         
         #Returns key, else returns None 
         try:
@@ -85,7 +105,9 @@ class Lexer():
             return None
         
     def keywordLookup(self, keyword):
-        keywordDict = {'var':['keyword', 'var'], 'if':['keyword','if'], 'print':['keyword','print']}
+        keywordDict = {'var':['keyword', 'var'], 'if':['keyword','if'], 'print':['keyword','print'], 
+                       'endif':['keyword', 'endif'], 'else':['keyword','else'], 'elif':['keyword', 'elif'], 
+                       'and':['keyword','and'], 'or':['keyword','or']}
         
         try:
             return keywordDict[keyword]

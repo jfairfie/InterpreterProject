@@ -1,6 +1,4 @@
 '''
-Created on Nov 25, 2020
-
 @author: jfairfie
 '''
 #Returns equation in prefix notation 
@@ -16,7 +14,7 @@ def inToPost(tokens):
     
     while (len(reverse) > 0):
         token = reverse.pop()
-        if (token[1].isdigit() or token[0] == 'identifier'):
+        if (type(token[1]) == int or type(token[1]) == float or token[0] == 'identifier'):
             outputStack.append(token)
         elif (token[0] == 'operator'):
             if (len(operatorStack) == 0):
@@ -45,12 +43,6 @@ def inToPost(tokens):
         outputStack.append(token)
         
     return outputStack
-
-def postToPre(postList):
-    preList = []
-    while (len(postList) > 0):
-        preList.append(postList.pop())
-    return preList
 
 def precedence(operator):
     if (operator == ')' or operator == '('):
