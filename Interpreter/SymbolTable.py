@@ -54,7 +54,11 @@ class SymbolTable:
         output = open('output.txt', 'w+')
         output.write('---Symbol Table---')
         while (head != None):
-            output.write('\n' + head.returnName() + ' ' + head.returnType() + ' ' + head.returnCategory())
+            if (head.returnValue() == None):
+                output.write('\n' + head.returnName() + ' ' + head.returnType() + ' ' + head.returnCategory())
+            elif (head.returnValue()):
+                output.write('\n' + head.returnName() + ' ' + head.returnType() + ' ' + head.returnCategory() + ' ' + str(head.returnValue()))
+            
             head = head.next
         output.close()
             
@@ -122,7 +126,11 @@ class TableBuilder:
         
         #Going to statement branches 
         for branch in branches:
-            if (branch.value == '<VarAssign>' or branch.value == '<IdentifierAssign>'):
+            self.addSymbolBranch(branch)
+        self.symbolTable.outputFile()
+    
+    def addSymbolBranch(self, branch):
+        if (branch.value == '<VarAssign>' or branch.value == '<IdentifierAssign>'):
                 symbol = branch.left.returnType()
                 if (branch.value == '<IdentifierAssign>' and self.symbolTable.lookUpName(symbol[1]) == None):
                     sys.exit('Error:: variable not declared')
@@ -174,9 +182,18 @@ class TableBuilder:
                         self.symbolTable.setAttribute(name, 'Integer', None)
                     elif (check == float):
                         self.symbolTable.setAttribute(name, 'Float', None)
-        #Purpose of output file is just to show what has happened 
-        self.symbolTable.outputFile()
-    
+        elif (branch.value == '<IfStmt>' or branch.value == '<elif>'):
+            elifNodes = branch.elifBranches
+            for b in elifNodes:
+                branches = b.stmts.branches
+                for x in branches:
+                    self.addSymbolBranch(x)
+            
+            branches = branch.stmts.branches
+            
+            for b in branches:
+                self.addSymbolBranch(b)
+        
     def removeNested(self, l):
         for item in l:
             if (type(item) == list):

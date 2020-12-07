@@ -14,6 +14,34 @@ class Evaluator:
             ''' Arithmetic '''
             if (branch.value == '<VarAssign>' or branch.value == '<IdentifierAssign>'):
                 if (branch.right):
-#                     print(branch.returnData(self.symbolTable))
                     value = branch.returnData(self.symbolTable)
-            
+            if (branch.value == '<IfStmt>'):
+                self.evaluateIfStmt(branch)
+        self.symbolTable.outputFile()
+    
+    def evaluateIfStmt(self, branch):
+        elifNodes = branch.elifBranches
+        bool = branch.expression.returnExpression(self.symbolTable)
+        boolBranch = None
+        if (bool == True):
+            boolBranch = branch
+        
+        if (bool == False):
+            x = 0 
+            while (bool == False and x < len(elifNodes)):
+                if (elifNodes[x].value == '<else>'):
+                    bool = True 
+                    boolBranch = elifNodes[x]
+                else:
+                    bool = elifNodes[x].expression.returnExpression(self.symbolTable)
+                    boolBranch = elifNodes[x]
+                x += 1
+
+        if (bool == True):
+            for b in boolBranch.stmts.branches:
+                if (b.value == '<VarAssign>' or b.value == '<IdentifierAssign>'):
+                    if (b.right):
+                        value = b.returnData(self.symbolTable)
+                elif (b.value == '<IfStmt>'):
+                    self.evaluateIfStmt(b)
+        self.symbolTable.outputFile()

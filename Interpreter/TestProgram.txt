@@ -1,28 +1,20 @@
 //Test program for concepts project
 //Each line is a separate statement
 
-
-// ======= Known Bugs ======== 
-
-
-// Errors when chaining divison and multiplication 
-// Example // var _b = 4 / 2 * 3 + 6 * 3 / 3
-
-//Add error:: Need to end if statement with endif 
-
-//Allow comments after the lines of code 
-
-//Make errors examine if stmt lines 
-//Symbol table doesn't read through if stmt 
-//Evaluator doesn't read if stmt 
-
-// ===========================
-
-var a = 4 + 2
-var b = 3
-
-if (4 + 2 < 3 + a and 3 > 2) 
-var d = 3
-endif 
-
+var a = 4
+var b 
 var c = 2
+if (a - 6 == 0 or c == 2)
+    b = a + 2
+    c = 4
+    a = 4    
+    if (a == 4)
+        b = 37 + a
+    endif 
+elif (a > 9)
+    b = 2
+else 
+    b = 4
+endif
+
+a = 2

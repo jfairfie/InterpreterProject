@@ -47,23 +47,23 @@ class StmtsNode:
     def __init__(self):
         self.value = '<stmts>'
         self.branches = []
-        self.inFunction = False
     
     ''' === Reading Tokens to Insert ==='''
     def insert(self, token, tokenStream, level):
         self.level = level
-        #If statement creation 
-        if (self.inFunction):
-            if (token[1] == 'endif'):
-                self.inFunction = False
-                return
-            self.branches[len(self.branches)-1].insert(token, tokenStream, self.level+1)
-        elif (token[1] == 'if' or token[1] == 'elif'):
-            ifNode = IfNode('IfStmt', self.level+1)
-            self.inFunction = True
+        if (len(self.branches) > 0 and self.branches[len(self.branches)-1].value == '<IfStmt>' and self.branches[len(self.branches)-1].getInFunction() == True):
+            branch = self.branches[len(self.branches)-1]
+            branch.insert(token, tokenStream, level)
+        elif (token[1] == 'if'):
             token = tokenStream.lex()
-            ifNode.insertExpression(token, tokenStream, level+1)
+            expressNode = ExpressionNode()
+            token = tokenStream.lex()
+            expressNode.insert(token, tokenStream, level+1)
+            ifNode = IfNode()
+            ifNode.insertExpression(expressNode, level+1)
             self.branches.append(ifNode)
+        elif (token[1] == 'elif'):
+            self.branches[len(self.branches)-1].insert(token, tokenStream, level)
         #Variable initialization
         elif (token[1] == 'var'):
             assignNode = AssignNode()
@@ -79,6 +79,12 @@ class StmtsNode:
         else:
             sys.exit('Error:: syntax error, invalid statement ' + token[1])
     ''' ===============  '''
+
+    def getInFunction(self):
+        for branch in self.branches:
+            if (branch.value == '<IfStmt>'):
+                return branch.getInFunction()
+        
     def printTree(self):
         print(' ' * self.level, self.value)
         for branch in self.branches:
@@ -98,7 +104,10 @@ class Node:
     
     def returnData(self, symbolTable=None, symbol=None):
         return self.data
-
+    
+    def returnExpression(self, symbolTable = None):
+        return self.data
+    
     def returnType(self):
         return (self.type, self.data)
     
@@ -109,47 +118,78 @@ class Node:
         print(' ' * self.level, self.value)
         print(' ' * (self.level + 1), self.data)
 
-
+''' IF NODE '''
 class IfNode:
-    def __init__(self, type, level):
-        self.level = level 
-        self.type = type 
-        self.value = '<' + type + '>'
-        #Left is if statements on same line, elif else 
-        self.left = None 
-        #Down is <stmts> node 
-        self.down = None 
-        #Right is nested if statements if if endif endif 
-        self.right = None
-        #Expression contains expression node
+    def __init__(self):
+        self.value = '<IfStmt>'
+        self.elifBranches = []
+        self.stmts = None
         self.expression = None
+        self.inFunction = True
     
-    def insertExpression(self, token, tokenStream, level):
-        if (token[1] == '('):
-            token = tokenStream.lex()
-        else:
-            sys.exit('Error:: missing parentheses after if')
-            
-        expressionNode = ExpressionNode()            
-        expressionNode.insert(token, tokenStream, level+1)
+    def insertExpression(self, expressionNode, level):
         self.expression = expressionNode
-    
+        self.level = level
+        
     def insert(self, token, tokenStream, level):
-        if (self.down == None):
-            self.down = StmtsNode()
-        self.down.insert(token, tokenStream, level+1)
+        if (token[1] == 'endif'):  
+            if (self.stmts == None):
+                sys.exit('Error:: if statement contains no body')
+            if (self.inFunction):
+                self.inFunction = False 
+            elif (self.inFunction == False):
+                for branch in self.elifBranches:
+                    branch.inFunction = False
+        
+        if (token[1] == 'elif'):
+            self.inFunction = False 
+            elifNode = IfNode()
+            token = tokenStream.lex()
+            expressionNode = ExpressionNode()
+            token = tokenStream.lex()
+            expressionNode.insert(token, tokenStream, level)
+            elifNode.insertExpression(expressionNode, level)
+            elifNode.value = '<elif>'
+            self.elifBranches.append(elifNode)
+        elif (token[1] == 'else'):
+            self.inFunction = False 
+            elseNode = IfNode()
+            elseNode.value = '<else>'
+            elseNode.level = self.level
+            self.elifBranches.append(elseNode)
+        elif(token[1] != 'endif'):
+            #Insert elements into current function 
+            if (self.inFunction == False):
+                self.elifBranches[len(self.elifBranches)-1].insert(token, tokenStream, level)
+            else:
+                if (self.stmts == None):
+                    self.stmts = StmtsNode()
+                self.stmts.insert(token, tokenStream, level+1)
+    
+    def getInFunction(self):
+        if (self.inFunction == True):
+            return True
+        for branch in self.elifBranches:
+            if (branch.inFunction == True):
+                return True
+        
+        return False
     
     def printTree(self):
+        print('--- stmt ---')
         print(' ' * self.level, self.value)
-        self.expression.printTree()
-        if (self.down):
-            self.down.printTree()
-            
+        if (self.value != '<else>'):
+            self.expression.printTree()
+        for ifNode in self.elifBranches:
+            ifNode.printTree()
+        self.stmts.printTree()
+        print('--- endstmt ---')
 #ExpressionNode is for IfStmt expression 
 #<Expression> -> <term> <operator> <term> {and|or <Expression>}
 class ExpressionNode:
     def __init_(self):
         #Operator 
+        self.value = '<Expression>'
         self.left = None 
         self.down = None 
         self.right = None
@@ -158,9 +198,74 @@ class ExpressionNode:
         self.contKey = None
         self.cont = None 
     
+    def returnExpression(self, symbolTable):
+        #Operator, left side, right side 
+        operator = self.down.returnType()[1]
+        left = self.left 
+        right = self.right 
+
+        if (self.contKey):
+            key = self.contKey.returnExpression(symbolTable)
+            contExpression = self.cont.returnExpression(symbolTable)
+        
+        left = self.left.returnExpression(symbolTable)
+        right = self.right.returnExpression(symbolTable)
+        
+        if (operator == '>'):
+            if (self.cont):
+                if (key == 'and'):
+                    return left > right and contExpression
+                elif (key == 'or'):
+                    return left > right or contExpression
+                else:
+                    sys.exit('Error:: invalid expression in if stmt')
+            else:
+                return left > right
+        elif (operator == '<'):
+            if (self.cont):
+                if (key == 'and'):
+                    return left < right and contExpression
+                elif (key == 'or'):
+                    return left < right or contExpression
+                else:
+                    sys.exit('Error:: invalid expression in if stmt')
+            else:
+                return left < right
+        elif (operator == '>='):
+            if (self.cont):
+                if (key == 'and'):
+                    return left >= right and contExpression
+                elif (key == 'or'):
+                    return left >= right or contExpression
+                else:
+                    sys.exit('Error:: invalid expression in if stmt')
+            else:
+                return left >= right
+        elif (operator == '<='):
+            if (self.cont):
+                if (key == 'and'):
+                    return left <= right and contExpression
+                elif (key == 'or'):
+                    return left <= right or contExpression
+                else:
+                    sys.exit('Error:: invalid expression in if stmt')
+            else:
+                return left <= right
+        elif (operator == '=='):
+            if (self.cont):
+                if (key == 'and'):
+                    return left == right and contExpression
+                elif (key == 'or'):
+                    return left == right or contExpression
+                else:
+                    sys.exit('Error:: invalid expression in if stmt')
+            else:
+                return left == right
+    
     def insert(self, token, tokenStream, level):
         self.level = level
         tokens = []
+        
         ''' first <term> '''
         while (self.isComparison(token) == False):
             tokens.append(token)
@@ -170,9 +275,14 @@ class ExpressionNode:
             
             if (token[0] == 'keyword'):
                 sys.exit('Error:: invalid syntax in if stmt')
+        
+        if (len(tokens) == 0):
+            sys.exit('Error:: missing identifier or constant')
+        
         termNode = TermNode()
         postList = PostFixConverter.inToPost(tokens)
         termNode.insert(postList, self.level+1)
+        termNode.evaluateExpr()
         self.left = termNode
         tokens.clear()
         
@@ -181,7 +291,6 @@ class ExpressionNode:
             sys.exit('Error:: expected comparison operator')
         self.down = Node('operator', token, self.level+1)
         token = tokenStream.lex()
-        
 
         ''' second <term> '''
         while (token[1] != 'and' and token[1] != 'or' and token[1] != ')'):
@@ -189,11 +298,15 @@ class ExpressionNode:
             token = tokenStream.lex()
             if (token == 'EOF'):
                 sys.exit('Error:: syntax error in if stmt')
+        
+        if (len(tokens) == 0):
+            sys.exit('Error:: missing identifier or constant')
         termNode = TermNode()
         postList = PostFixConverter.inToPost(tokens);
-        termNode.insert(postList, self.level+1)        
+        termNode.insert(postList, self.level+1)
+        termNode.evaluateExpr()        
         self.right = termNode
-        
+
         if (token[1] == 'and' or token[1] == 'or'):
             self.contKey = Node('keyword', token, self.level+1)
             expressionNode = ExpressionNode()
@@ -203,6 +316,9 @@ class ExpressionNode:
         else:
             self.contKey = None 
             self.cont = None
+    
+        token = tokenStream.lex()
+        
     
     def isComparison(self, token):
         if (token[1] == '<' or token[1] == '>' or token[1] == '==' or token[1] == '<=' or token[1] == '>='):
@@ -216,7 +332,6 @@ class ExpressionNode:
         if (self.cont):
             self.contKey.printTree()
             self.cont.printTree()
-        
 
 #Variable assignment 
 class AssignNode:
@@ -285,8 +400,13 @@ class TermNode:
             
             if (type(left) == str):
                 left = symbolTable.lookUpName(left).returnValue()
+                if (left == None):
+                    sys.exit('Error:: uninitialized variable')
+                
             if (type(right) == str):
                 right = symbolTable.lookUpName(right).returnValue()
+                if (right == None):
+                    sys.exit('Error:: uninitialized variable')
             
             if (self.down.data == '+'):
                 return left + right
@@ -310,6 +430,45 @@ class TermNode:
                 return self.left.returnData(symbolTable)
             else:
                 return self.right.returnData(symbolTable)
+    
+    def returnExpression(self, symbolTable):
+        if (self.down == None):
+            if (self.left):
+                if (self.right):
+                    sys.exit('Error:: missing operator')
+                value = self.left.data
+                if (type(value) == str):
+                    value = symbolTable.lookUpName(value)
+                    if (value == None):
+                        sys.exit('Error:: identifier not initialized')
+                    else:
+                        return value.returnValue()
+                return value
+            else:
+                sys.exit('Error:: syntax error in if stmt expression')
+        if (self.down):
+            left = self.left.returnExpression(symbolTable)
+            right = self.right.returnExpression(symbolTable)
+            operator = self.down.data
+            
+            if (type(left) == str):
+                left = symbolTable.lookUpName(left).returnValue()
+            if (type(right) == str):
+                right = symbolTable.lookUpName(right).returnValue()
+
+            if (operator == '+'):
+                return left + right
+            elif (operator == '*'):
+                return left * right
+            elif (operator == '/'):
+                return right // left 
+            elif (operator == '-'):
+                return right - left
+            elif (operator == '%'):
+                return right % left 
+            else:
+                sys.exit('Error:: unknown operator')
+                
     
     #Returns an array of the types of data located in tree 
     #Used for creation of symbol table
@@ -373,7 +532,6 @@ class TermNode:
         
         if (self.down != None and (self.right == None or self.left == None)):
             sys.exit('Error:: invalid expression missing identifier/constant')
-            
         
         if (self.down):
             if (self.down.evaluateExpr() == '('):
